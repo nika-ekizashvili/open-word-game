@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HOLLOW — settlement vertical slice</title>
+  <link rel="stylesheet" href="styles.css" />
+  <!-- No build step. Three.js is pulled from a CDN via an import map. -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <canvas id="scene"></canvas>
+
+  <!-- Crosshair -->
+  <div id="crosshair">+</div>
+
+  <!-- Interaction hint -->
+  <div id="hint"></div>
+
+  <!-- Subtitle / log playback line -->
+  <div id="subtitle"></div>
+
+  <!-- Objective ticker -->
+  <div id="objective">
+    <span id="obj-scan">Scanned 0/3</span> &nbsp;·&nbsp;
+    <span id="obj-log">Logs 0/1</span> &nbsp;·&nbsp;
+    <span id="obj-power">Power: OFFLINE</span>
+  </div>
+
+  <!-- Journal panel -->
+  <div id="journal" class="hidden">
+    <h2>JOURNAL</h2>
+    <ul id="journal-list"><li class="empty">Nothing recorded yet. Scan the world.</li></ul>
+    <p class="journal-foot">Press <b>J</b> or <b>Tab</b> to close</p>
+  </div>
+
+  <!-- Start / pause overlay -->
+  <div id="overlay">
+    <div class="panel">
+      <h1>HOLLOW</h1>
+      <p class="tagline">The lights are still on. Everyone is gone.</p>
+      <button id="start-btn">▶ LAND</button>
+      <div class="controls">
+        <div><b>WASD</b> move</div>
+        <div><b>Mouse</b> look</div>
+        <div><b>Space</b> jetpack hop</div>
+        <div><b>E</b> scan / interact</div>
+        <div><b>J / Tab</b> journal</div>
+        <div><b>Esc</b> release mouse</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Win banner -->
+  <div id="win" class="hidden">
+    <div class="panel">
+      <h1>THE SETTLEMENT REMEMBERS</h1>
+      <p>You scanned everything they left and brought the lights back.<br />
+         The hum from the mine is louder now.<br />
+         <em>End of vertical slice — the planet is waiting.</em></p>
+      <button id="win-close">Keep exploring</button>
+    </div>
+  </div>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
