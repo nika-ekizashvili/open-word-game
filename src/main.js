@@ -98,6 +98,44 @@ terrain.receiveShadow = true;
 scene.add(terrain);
 
 // ---------------------------------------------------------------------------
+// Sky & atmosphere: starfield, two moons, drifting dust motes
+// ---------------------------------------------------------------------------
+// Starfield — points scattered on a far dome.
+{
+  const N = 1200, pos = [];
+  for (let i = 0; i < N; i++) {
+    const u = Math.random(), v = Math.random();
+    const theta = u * Math.PI * 2, phi = Math.acos(2 * v - 1);
+    const r = 420;
+    const y = Math.abs(r * Math.cos(phi)); // upper hemisphere only
+    pos.push(r * Math.sin(phi) * Math.cos(theta), y, r * Math.sin(phi) * Math.sin(theta));
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  const stars = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xcfe2ff, size: 1.4, sizeAttenuation: false, fog: false }));
+  scene.add(stars);
+}
+// Two moons hanging over the settlement.
+function moon(x, y, z, r, color, emissive) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(r, 16, 12),
+    new THREE.MeshStandardMaterial({ color, emissive, emissiveIntensity: 0.6, flatShading: true, fog: false }));
+  m.position.set(x, y, z); scene.add(m); return m;
+}
+moon(-160, 120, -260, 26, 0x5a3a2a, 0x8a4a22);    // big rusty moon
+moon(180, 180, -200, 12, 0x33425a, 0x223a55);     // small cold moon
+// Drifting dust motes near the player (atmosphere is free polish).
+const dust = (() => {
+  const N = 400, arr = new Float32Array(N * 3);
+  for (let i = 0; i < N; i++) {
+    arr[i*3] = (Math.random()-0.5)*80; arr[i*3+1] = Math.random()*16; arr[i*3+2] = (Math.random()-0.5)*80;
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3));
+  const p = new THREE.Points(g, new THREE.PointsMaterial({ color: 0x9fb6d0, size: 0.06, transparent: true, opacity: 0.5 }));
+  scene.add(p); return { points: p, arr };
+})();
+
+// ---------------------------------------------------------------------------
 // Build helpers
 // ---------------------------------------------------------------------------
 const mat = (color, opts = {}) =>
@@ -112,8 +150,22 @@ function box(w, h, d, color, x, y, z, opts) {
 const colliders = []; // simple cylinder colliders {x, z, r}
 function addCollider(x, z, r) { colliders.push({ x, z, r }); }
 
-// Window panes that light up when power is restored.
+// Window panes + street-lamp heads that light up when power is restored.
 const windows = [];
+const streetLamps = [];
+
+// A street lamp: post + emissive head (dark until power is restored).
+function streetLamp(x, z) {
+  const y = terrainHeight(x, z);
+  const post = box(0.18, 4, 0.18, COL.metal, x, y + 2, z);
+  const arm = box(1.2, 0.15, 0.15, COL.metal, x + 0.5, y + 3.9, z);
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.3, 0.6),
+    new THREE.MeshStandardMaterial({ color: 0x10161f, emissive: COL.accent, emissiveIntensity: 0, flatShading: true }));
+  head.position.set(x + 1, y + 3.8, z); scene.add(head);
+  const light = new THREE.PointLight(COL.accent, 0, 14, 2); light.position.set(x + 1, y + 3.6, z); scene.add(light);
+  streetLamps.push({ head, light });
+  addCollider(x, z, 0.4);
+}
 function addWindows(parent, count, ring) {
   for (let i = 0; i < count; i++) {
     const a = (i / count) * Math.PI * 2;
@@ -186,6 +238,48 @@ for (let i = 0; i < 14; i++) {
   box(s, s, s, i % 2 ? COL.metal : COL.dome, x, terrainHeight(x, z) + s / 2, z).rotation.y = hash(i, 9) * 3;
 }
 
+// Street lamps lining the plaza path (light up with power).
+streetLamp(-6, 6); streetLamp(6, 6); streetLamp(-6, -2); streetLamp(6, -2); streetLamp(0, 22);
+
+// Pipes connecting the domes to the hub (life-support conduits).
+function pipe(x1, z1, x2, z2) {
+  const dx = x2 - x1, dz = z2 - z1, len = Math.hypot(dx, dz);
+  const p = box(len, 0.3, 0.3, COL.metal, (x1 + x2) / 2, 0.5, (z1 + z2) / 2, { metalness: 0.3 });
+  p.rotation.y = -Math.atan2(dz, dx);
+}
+pipe(-10, -6, 0, 14); pipe(9, -9, 0, 14); pipe(12, 7, 0, 14); pipe(-12, 9, 0, 14);
+
+// Water / oxygen tower (a tall landmark on the edge of the settlement).
+{
+  for (let i = 0; i < 4; i++) {
+    const a = i * Math.PI / 2;
+    box(0.25, 9, 0.25, COL.metal, -26 + Math.cos(a) * 1.6, 4.5, -10 + Math.sin(a) * 1.6);
+  }
+  const tank = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 2.6, 3.5, 8), mat(COL.dome));
+  tank.position.set(-26, 10.5, -10); tank.castShadow = true; scene.add(tank);
+  const cap = new THREE.Mesh(new THREE.ConeGeometry(2.7, 1.4, 8), mat(COL.metal));
+  cap.position.set(-26, 12.9, -10); scene.add(cap);
+  addCollider(-26, -10, 2.2);
+}
+
+// Low perimeter fence posts (the settlement's edge).
+for (let i = 0; i < 28; i++) {
+  const a = (i / 28) * Math.PI * 2, r = 34;
+  const x = Math.cos(a) * r, z = Math.sin(a) * r;
+  box(0.15, 1.4, 0.15, COL.metal, x, terrainHeight(x, z) + 0.7, z);
+}
+
+// Distant mine rig silhouette on the horizon, where the hum comes from.
+{
+  const mx = 90, mz = -90;
+  for (let i = 0; i < 5; i++) {
+    const h = 14 + i * 4;
+    box(3, h, 3, 0x161d28, mx + (i - 2) * 6, h / 2, mz + (i % 2) * 5, { emissive: 0x1a0d00, emissiveIntensity: 0.4 });
+  }
+  const derrick = box(2, 30, 2, 0x10151e, mx, 15, mz);
+  derrick.rotation.z = 0.08;
+}
+
 // ---------------------------------------------------------------------------
 // Interactables — the heart of the slice (scan / log / power)
 // ---------------------------------------------------------------------------
@@ -250,6 +344,47 @@ let powerOn = false;
   makeInteractable(breaker, {
     type: 'power', title: "MAIN BREAKER",
     clue: "You threw the main breaker. The settlement's windows flickered back to life — and somewhere, a door unlocked.",
+  });
+}
+// 6. Memorial stone — names with no dates of death.
+{
+  const stone = new THREE.Mesh(new THREE.BoxGeometry(1.6, 2, 0.5), mat(0x3a4252));
+  stone.position.set(-14, terrainHeight(-14, 13) + 1, 13); stone.rotation.y = 0.2;
+  makeInteractable(stone, {
+    type: 'scan', title: "MEMORIAL STONE",
+    clue: "Eleven names carved here. Each has a birth date. None has a date of death. They weren't buried — they were listed as “gone under.”",
+  });
+}
+// 7. A child's toy left in the dirt.
+{
+  const toy = new THREE.Mesh(new THREE.SphereGeometry(0.4, 8, 6), mat(0xd23b3b));
+  toy.position.set(8, terrainHeight(8, -3) + 0.4, -3);
+  makeInteractable(toy, {
+    type: 'scan', title: "ABANDONED TOY",
+    clue: "A child's ball, half-buried. Whoever dropped it was carried, or ran — children don't leave these behind by choice.",
+  });
+}
+// 8. Warning daubed on the hub wall.
+{
+  const graffiti = box(3, 1.6, 0.06, 0x2c3e57, 0, 2.2, 9.7, { emissive: 0x661111, emissiveIntensity: 0.5 });
+  makeInteractable(graffiti, {
+    type: 'scan', title: "WARNING (PAINTED)",
+    clue: "Scrawled in reactor-paint across the door: “DON'T LET IT FINISH COUNTING.” The brushstrokes are frantic.",
+  });
+}
+// 9. Second data log, up by the relay antenna.
+{
+  const term2 = box(1.2, 1.6, 0.8, 0x1a2230, 19, 0.8, -2, { emissive: 0x112 });
+  makeInteractable(term2, {
+    type: 'log', title: "DATA LOG 22",
+    clue: "Ops log 22 — Mara Vey: the hum has rhythm now. It's counting. We answered once and it learned. Last transport leaves at dawn.",
+    lines: [
+      "OPS LOG 22 — Vey. Last one I'll record from the surface.",
+      "The hum changed three days ago. It has a rhythm now.",
+      "Doctor Sol thinks it's… counting. Toward something.",
+      "We pinged it back once, to test. It learned the pattern in an hour.",
+      "Last transport leaves at dawn. If you're hearing this — don't dig, and don't answer it.",
+    ],
   });
 }
 
@@ -405,6 +540,7 @@ function interact(obj) {
     powerOn = true; obj.material.emissiveIntensity = 0.9; obj.material.emissive.set(0x33ff66);
     sfx.power(); addJournal(d.title, d.clue);
     windows.forEach(w => { w.material.emissive.set(COL.accent); w.material.emissiveIntensity = 1.0; });
+    streetLamps.forEach(l => { l.head.material.emissiveIntensity = 1.0; l.light.intensity = 1.6; });
   }
   updateObjective();
   checkWin();
@@ -451,17 +587,18 @@ let scannedCount = 0, logsCount = 0;
 const objScan = document.getElementById('obj-scan');
 const objLog = document.getElementById('obj-log');
 const objPower = document.getElementById('obj-power');
+const SCAN_GOAL = 6, LOG_GOAL = 2;
 function updateObjective() {
-  objScan.textContent = `Scanned ${scannedCount}/3`;
-  objScan.classList.toggle('done', scannedCount >= 3);
-  objLog.textContent = `Logs ${logsCount}/1`;
-  objLog.classList.toggle('done', logsCount >= 1);
+  objScan.textContent = `Scanned ${scannedCount}/${SCAN_GOAL}`;
+  objScan.classList.toggle('done', scannedCount >= SCAN_GOAL);
+  objLog.textContent = `Logs ${logsCount}/${LOG_GOAL}`;
+  objLog.classList.toggle('done', logsCount >= LOG_GOAL);
   objPower.textContent = `Power: ${powerOn ? 'ONLINE' : 'OFFLINE'}`;
   objPower.classList.toggle('online', powerOn);
 }
 let won = false;
 function checkWin() {
-  if (won || !(scannedCount >= 3 && logsCount >= 1 && powerOn)) return;
+  if (won || !(scannedCount >= SCAN_GOAL && logsCount >= LOG_GOAL && powerOn)) return;
   won = true;
   setTimeout(() => {
     controls.unlock();
@@ -504,6 +641,15 @@ function animate() {
     const d = player.position.distanceTo(mineGlow.position);
     sfx.setHum(THREE.MathUtils.clamp(1 - d / 200, 0.04, 0.5) * 0.6);
   }
+  // drifting dust, kept centred around the player so it's always visible
+  const da = dust.arr;
+  for (let i = 0; i < da.length; i += 3) {
+    da[i] += dt * 0.4; da[i + 1] += dt * 0.15;
+    if (da[i + 1] > 16) da[i + 1] = 0;
+    if (da[i] - player.position.x > 40) da[i] -= 80;
+    if (da[i] - player.position.x < -40) da[i] += 80;
+  }
+  dust.points.geometry.attributes.position.needsUpdate = true;
   renderer.render(scene, camera);
 }
 updateObjective();
