@@ -598,7 +598,7 @@ let hull = 100, dead = false, water = 100;
 const RESERVOIR = new THREE.Vector3(7, 0, 3);   // refill point once the pump runs
 let lowWaterWarned = false;
 const raiders = [];
-const RMAX = 30, RTURN = 1.5, RAGGRO = 72;
+const RMAX = 27, RTURN = 1.4, RAGGRO = 52;     // slower than the player (36→outrunnable), tighter aggro
 const raiderWheelGeo = new THREE.CylinderGeometry(0.6, 0.6, 0.45, 10); raiderWheelGeo.rotateZ(Math.PI / 2);
 
 function buildRaider(x, z) {
@@ -617,10 +617,10 @@ function buildRaider(x, z) {
     wheel.position.set(wx, 0.6, wz); ch.add(wheel); ws.push(wheel);
   }
   g.position.set(x, terrainHeight(x, z), z); scene.add(g);
-  return { group: g, chassis: ch, wheels: ws, heading: Math.random() * Math.PI * 2, speed: 0, hull: 60, alive: true };
+  return { group: g, chassis: ch, wheels: ws, heading: Math.random() * Math.PI * 2, speed: 0, hull: 60, alive: true, hitCd: 0 };
 }
 function spawnRaider(x, z) { raiders.push(buildRaider(x, z)); }
-[[42, -32], [54, 18], [-44, -40], [-30, 34]].forEach(([x, z]) => spawnRaider(x, z));
+[[48, -40], [56, 26], [-46, -44]].forEach(([x, z]) => spawnRaider(x, z));
 
 // One-shot explosion particle pool (orange, outward, gravity).
 const boom = (() => {
@@ -687,26 +687,36 @@ function updateRaiders(dt) {
     r.chassis.rotation.x = THREE.MathUtils.lerp(r.chassis.rotation.x, Math.atan2(hF - hB, 3), 0.2);
     for (const w of r.wheels) w.rotation.x += r.speed * dt * 1.4;
 
-    // impact with the player's car (combat resolves on collision)
+    if (r.hitCd > 0) r.hitCd -= dt;
+
+    // impact with the player's car — always knock apart, but only damage on a cooldown
     if (driving && r.group.position.distanceTo(car.position) < 3.3) {
-      const playerSpeed = carVel.length();
-      const closing = playerSpeed + r.speed;
       const push = new THREE.Vector3().subVectors(r.group.position, car.position).setY(0).normalize();
-      r.group.position.addScaledVector(push, 1.6);
-      carVel.addScaledVector(push, -closing * 0.25);
-      r.hull -= playerSpeed * 0.9 + 4;          // ramming them fast hurts them most
-      hull = Math.max(0, hull - (r.speed * 0.45 + 4));
-      sfx.crash(); updateHud();
-      if (r.hull <= 0) destroyRaider(r);
-      if (hull <= 0 && !dead) gameOver();
+      r.group.position.addScaledVector(push, 1.8);     // shove them off every frame (prevents overlap)
+      if (r.hitCd <= 0) {
+        r.hitCd = 0.8;                                   // ~one hit per raider per 0.8s
+        const playerSpeed = carVel.length();
+        carVel.addScaledVector(push, -(playerSpeed + r.speed) * 0.2);
+        r.hull -= playerSpeed * 1.3 + 6;                 // ramming them at speed wrecks them (~2 hits)
+        hull = Math.max(0, hull - (8 + r.speed * 0.2));  // you can take ~8-10 hits
+        sfx.crash(); updateHud();
+        if (r.hull <= 0) destroyRaider(r);
+        if (hull <= 0 && !dead) gameOver();
+      }
     }
   }
 }
 
 function gameOver() {
-  dead = true; sfx.boom();
+  dead = true; sfx.boom(); sfx.engineOff();
   boom.blast(car.position.x, car.position.y, car.position.z);
-  setTimeout(() => { controls.unlock(); document.getElementById('gameover').classList.remove('hidden'); }, 700);
+  setTimeout(() => {
+    controls.unlock();
+    overlay.classList.add('hidden');
+    journalEl.classList.add('hidden');
+    missionsEl.classList.add('hidden');
+    document.getElementById('gameover').classList.remove('hidden');
+  }, 700);
 }
 
 // ---------------------------------------------------------------------------
