@@ -581,6 +581,7 @@ function enterCar() {
   driving = true; sfx.engineOn(); car.userData.headlight.intensity = 1.2;
   hintEl.classList.remove('show'); crosshair.style.display = 'none';
   speedoEl.classList.add('show');
+  invuln = Math.max(invuln, 2);   // brief grace so you're never instantly swarmed
 }
 function exitCar() {
   driving = false; sfx.engineOff(); car.userData.headlight.intensity = 0;
@@ -594,7 +595,7 @@ function exitCar() {
 // ---------------------------------------------------------------------------
 // Raiders — enemy buggies that hunt you while you drive
 // ---------------------------------------------------------------------------
-let hull = 100, dead = false, water = 100;
+let hull = 100, dead = false, water = 100, invuln = 0;
 const RESERVOIR = new THREE.Vector3(7, 0, 3);   // refill point once the pump runs
 let lowWaterWarned = false;
 const raiders = [];
@@ -693,7 +694,7 @@ function updateRaiders(dt) {
     if (driving && r.group.position.distanceTo(car.position) < 3.3) {
       const push = new THREE.Vector3().subVectors(r.group.position, car.position).setY(0).normalize();
       r.group.position.addScaledVector(push, 1.8);     // shove them off every frame (prevents overlap)
-      if (r.hitCd <= 0) {
+      if (r.hitCd <= 0 && invuln <= 0) {
         r.hitCd = 0.8;                                   // ~one hit per raider per 0.8s
         const playerSpeed = carVel.length();
         carVel.addScaledVector(push, -(playerSpeed + r.speed) * 0.2);
@@ -995,7 +996,7 @@ const overlay = document.getElementById('overlay');
 document.getElementById('start-btn').onclick = () => { sfx.init(); controls.lock(); };
 document.getElementById('win-close').onclick = () => { document.getElementById('win').classList.add('hidden'); controls.lock(); };
 document.getElementById('retry-btn').onclick = () => location.reload();
-controls.addEventListener('lock', () => overlay.classList.add('hidden'));
+controls.addEventListener('lock', () => { overlay.classList.add('hidden'); invuln = Math.max(invuln, 1.5); });
 controls.addEventListener('unlock', () => { if (!won && !dead) overlay.classList.remove('hidden'); });
 
 function updateGate(dt) {
@@ -1012,6 +1013,7 @@ function animate() {
   requestAnimationFrame(animate);
   const dt = Math.min(clock.getDelta(), 0.05);
   if (controls.isLocked && !dead) {
+    if (invuln > 0) invuln -= dt;
     if (driving) updateCar(dt);
     else { updateWalk(dt); updateTargeting(); }
     updateRaiders(dt);

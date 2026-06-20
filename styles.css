@@ -142,7 +142,7 @@ button:hover { background: var(--accent); color: var(--bg); box-shadow: 0 0 24px
   padding: 28px 26px; color: var(--ink); overflow-y: auto; backdrop-filter: blur(4px);
   transition: transform .25s ease; box-shadow: 10px 0 40px rgba(0,0,0,.5);
 }
-#missions.hidden { transform: translateX(-100%); display: block; }
+#missions.hidden { transform: translateX(-100%); }
 #missions h2 { letter-spacing: 4px; font-weight: 600; color: var(--accent); margin-bottom: 18px; font-size: 18px; }
 #missions ul { list-style: none; }
 #missions li {
@@ -152,5 +152,5 @@ button:hover { background: var(--accent); color: var(--bg); box-shadow: 0 0 24px
 #missions li.done { color: #7CFC9B; text-decoration: line-through; opacity: .75; }
 #missions li.locked { color: #6b5d4a; font-style: italic; }
 
-.hidden { display: none; }
-#missions.hidden { display: block; }
+/* display:none must beat id-specificity selectors like #overlay { display:flex } */
+.hidden { display: none !important; }
