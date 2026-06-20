@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>HOLLOW — settlement vertical slice</title>
+  <title>DUST — wasteland vertical slice</title>
   <link rel="stylesheet" href="styles.css" />
   <!-- No build step. Three.js is pulled from a CDN via an import map. -->
   <script type="importmap">
@@ -29,9 +29,15 @@
 
   <!-- Objective ticker -->
   <div id="objective">
-    <span id="obj-scan">Scanned 0/6</span> &nbsp;·&nbsp;
+    <span id="obj-scan">Salvage 0/6</span> &nbsp;·&nbsp;
     <span id="obj-log">Logs 0/2</span> &nbsp;·&nbsp;
-    <span id="obj-power">Power: OFFLINE</span>
+    <span id="obj-power">Pump: OFFLINE</span>
+  </div>
+
+  <!-- Fuel gauge -->
+  <div id="fuel">
+    <span class="fuel-label">FUEL</span>
+    <div class="fuel-bar"><div id="fuel-fill"></div></div>
   </div>
 
   <!-- Journal panel -->
@@ -44,14 +50,15 @@
   <!-- Start / pause overlay -->
   <div id="overlay">
     <div class="panel">
-      <h1>HOLLOW</h1>
-      <p class="tagline">The lights are still on. Everyone is gone.</p>
-      <button id="start-btn">▶ LAND</button>
+      <h1>DUST</h1>
+      <p class="tagline">No water for a hundred miles. Keep the engine running.</p>
+      <button id="start-btn">▶ ROLL OUT</button>
       <div class="controls">
-        <div><b>WASD</b> move</div>
+        <div><b>WASD</b> move / drive</div>
         <div><b>Mouse</b> look</div>
-        <div><b>Space</b> jetpack hop</div>
-        <div><b>E</b> scan / interact</div>
+        <div><b>F</b> enter / exit car</div>
+        <div><b>Space</b> hop (on foot)</div>
+        <div><b>E</b> salvage / interact</div>
         <div><b>J / Tab</b> journal</div>
         <div><b>Esc</b> release mouse</div>
       </div>
@@ -61,11 +68,12 @@
   <!-- Win banner -->
   <div id="win" class="hidden">
     <div class="panel">
-      <h1>THE SETTLEMENT REMEMBERS</h1>
-      <p>You scanned everything they left and brought the lights back.<br />
-         The hum from the mine is louder now.<br />
-         <em>End of vertical slice — the planet is waiting.</em></p>
-      <button id="win-close">Keep exploring</button>
+      <h1>FUEL UP. HEAD SOUTH.</h1>
+      <p>You salvaged the Holdout's story and cranked the pump back to life.<br />
+         Water in the tank, gas in the can, the gate grinding open.<br />
+         The green rig waits on the south ridge.<br />
+         <em>End of vertical slice — the wasteland is waiting.</em></p>
+      <button id="win-close">Keep driving</button>
     </div>
   </div>
 

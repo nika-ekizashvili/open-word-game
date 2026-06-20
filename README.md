@@ -1,13 +1,14 @@
-# HOLLOW
+# DUST
 
-A low-poly **planet exploration mystery** for the browser. You land on a quiet,
-abandoned planet and piece together what emptied it — by walking, scanning, and
-bringing the lights back on. No combat; exploration and atmosphere carry it.
+A low-poly **post-apocalyptic wasteland survival** game for the browser —
+Mad-Max-flavoured. The water's gone and the raiders are coming. Scavenge a dying
+outpost, keep your war-car fuelled, and follow the convoy south toward a rumour
+of green.
 
-> 📄 Full concept, world structure, mechanics, and roadmap: **[DESIGN.md](DESIGN.md)**
+> 📄 Full concept, world, mechanics, and roadmap: **[DESIGN.md](DESIGN.md)**
 
-This repo currently contains the **M0 vertical slice** — the *settlement* zone —
-proving the core loop before the rest of the planet is built.
+This repo currently contains the **M0 vertical slice** — *the Holdout* — proving
+the core loop (driving + fuel + salvage) before the rest of the wasteland is built.
 
 ## Run it
 
@@ -22,34 +23,36 @@ npx serve .
 python3 -m http.server 8000
 ```
 
-Then open the printed URL (e.g. `http://localhost:8000`) and click **LAND**.
+Then open the printed URL (e.g. `http://localhost:8000`) and click **ROLL OUT**.
 
 ## Controls
 
 | Key | Action |
 |-----|--------|
-| **WASD** | Move |
+| **WASD** | Move on foot / drive the car |
 | **Mouse** | Look |
-| **Space** | Jetpack hop (low gravity) |
-| **E** | Scan / play log / restore power (look at glowing objects) |
+| **F** | Enter / exit the car (stand near it) |
+| **Space** | Hop (on foot) |
+| **E** | Salvage / play log / crank pump / grab fuel |
 | **J** or **Tab** | Toggle journal |
 | **Esc** | Release the mouse |
 
 ## The slice's loop
 
-1. Explore the settlement (4 dwellings, a hub, your landing pod, the relay antenna).
-2. **Scan** 3 environmental clues — they tell the story of the evacuation.
-3. **Play** the operations data log at the terminal.
-4. **Restore power** at the main breaker → the windows light up and the hub door opens.
-5. Do all of the above → the slice's ending plays. Listen for the mine hum
-   growing as you wander toward the orange horizon.
+1. **Drive** the war-car out of the Holdout across the dunes — mind the fuel gauge.
+2. **Grab fuel cans** scattered in the wastes to keep rolling (the gauge turns red when low).
+3. Get out and **salvage** 6 clues — they tell the story of the raid and the convoy.
+4. **Play** the two radio logs at the terminals.
+5. **Crank the water pump** in the garage → the Holdout's lights come on and the gate grinds open.
+6. Do all of the above → the slice's ending plays. The green rig waits on the
+   south horizon for the full game.
 
 ## What's here
 
 ```
-index.html    # shell + import map + UI overlays
-styles.css    # HUD, journal, overlays
-src/main.js   # the game: world, movement, scanner, audio, journal, win state
+index.html    # shell + import map + UI (HUD, fuel gauge, journal, overlays)
+styles.css    # wasteland HUD / fuel gauge / overlays
+src/main.js   # the game: terrain, drivable car, fuel, salvage, audio, journal, win
 DESIGN.md     # the design document
 ```
 
