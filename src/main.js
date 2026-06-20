@@ -577,7 +577,9 @@ function exitCar() {
 // ---------------------------------------------------------------------------
 // Raiders — enemy buggies that hunt you while you drive
 // ---------------------------------------------------------------------------
-let hull = 100, dead = false;
+let hull = 100, dead = false, water = 100;
+const RESERVOIR = new THREE.Vector3(7, 0, 3);   // refill point once the pump runs
+let lowWaterWarned = false;
 const raiders = [];
 const RMAX = 30, RTURN = 1.5, RAGGRO = 72;
 const raiderWheelGeo = new THREE.CylinderGeometry(0.6, 0.6, 0.45, 10); raiderWheelGeo.rotateZ(Math.PI / 2);
@@ -857,10 +859,13 @@ const objPump = document.getElementById('obj-power');
 const fuelFill = document.getElementById('fuel-fill');
 const speedoEl = document.getElementById('speedo');
 const hullFill = document.getElementById('hull-fill');
+const waterFill = document.getElementById('water-fill');
 const threatEl = document.getElementById('threat');
 function updateHud() {
   hullFill.style.width = hull + '%';
   hullFill.style.background = hull < 30 ? '#ff5a3c' : '#7CFC9B';
+  waterFill.style.width = water + '%';
+  waterFill.style.background = water < 20 ? '#ff5a3c' : '#4ec3ff';
 }
 function updateThreat() {
   const n = raiders.filter(r => r.alive).length;
@@ -910,6 +915,20 @@ function animate() {
     else { updateWalk(dt); updateTargeting(); }
     updateRaiders(dt);
     updateGate(dt);
+
+    // thirst — drains faster in the heat of driving; refill at the pumped reservoir
+    water = Math.max(0, water - dt * (driving ? 0.6 : 0.3));
+    if (pumpOn && !driving && Math.hypot(player.position.x - RESERVOIR.x, player.position.z - RESERVOIR.z) < 5) {
+      if (water < 100) { water = Math.min(100, water + dt * 45); flashSub('Drinking — the tank runs clear again.'); }
+    }
+    if (water <= 0) {                       // dehydration eats the hull
+      hull = Math.max(0, hull - dt * 3); updateHud();
+      if (hull <= 0 && !dead) gameOver();
+    } else if (water < 20 && !lowWaterWarned) {
+      lowWaterWarned = true; flashSub('Water running low. Get the pump running and drink.');
+    } else if (water > 30) { lowWaterWarned = false; }
+    updateHud();
+
     fuelFill.style.width = fuel + '%';
     fuelFill.style.background = fuel < 20 ? '#ff5a3c' : 'var(--accent)';
     // green-rig hum swells as you approach the south ridge
