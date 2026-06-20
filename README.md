@@ -32,7 +32,7 @@ Then open the printed URL (e.g. `http://localhost:8000`) and click **ROLL OUT**.
 | **WASD** | Move on foot / drive the car |
 | **Mouse** | Look |
 | **F** | Enter / exit the car (stand near it) |
-| **Space** | Hop (on foot) |
+| **Space** / **Shift** | Hop (on foot) · handbrake-drift (driving) |
 | **E** | Salvage / play log / crank pump / grab fuel |
 | **J** or **Tab** | Toggle journal |
 | **Esc** | Release the mouse |

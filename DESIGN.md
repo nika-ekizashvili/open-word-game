@@ -90,7 +90,7 @@ Scarcity and danger drive moment-to-moment play; the narrative is environmental 
 
 **M0 — Vertical slice (this repo).** The Holdout: drive a war-car across dunes with fuel, get out and explore on foot, salvage 6 clues, play 2 radio logs, crank the pump (lights + gate). *If the driving feels good, the rest is content.*
 
-**M1 — Driving game-feel pass.** Better suspension, drift, skid marks, dust plume off the wheels, engine mix, controller support.
+**M1 — Driving game-feel pass.** ✅ *(in the demo)* Handbrake drift, wheel dust plume, skid marks, chassis lean into slides, speed-based FOV, speedometer. *Still to do: controller support, skid-mark fade.*
 
 **M2 — Survival loop.** Water meter, fuel economy tuning, a real fuel-vs-distance gamble across a bigger map with streaming.
 
@@ -116,7 +116,7 @@ Scarcity and danger drive moment-to-moment play; the narrative is environmental 
 See `index.html`. It implements the M0 vertical slice:
 
 - Click-to-start pointer-lock, first-person on foot.
-- **Drive a low-poly war-car**: enter/exit with **F**, WASD to drive, terrain-following suspension + tilt, spinning/steering wheels, chase cam, headlights, an engine that pitches with speed.
+- **Drive a low-poly war-car**: enter/exit with **F**, WASD to drive, terrain-following suspension + tilt, spinning/steering wheels, chase cam, headlights, an engine that pitches with speed — plus **handbrake drift** (Space/Shift), wheel **dust plume**, **skid marks**, chassis lean into slides, speed-based **FOV**, and a **speedometer**.
 - **Fuel gauge** that drains as you drive; **fuel cans** scattered in the dunes to top up (turns red when low).
 - **Salvage scanner**: look at wreckage/clues, **E** to salvage → lore + journal entry (convoy wreck, dry reservoir, raider totem, graves, child's doll, painted warning).
 - **Radio logs** with timed subtitle playback.

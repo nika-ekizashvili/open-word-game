@@ -409,40 +409,109 @@ function updateWalk(dt) {
 }
 
 // ---------------------------------------------------------------------------
-// Driving
+// Driving (arcade + drift)
 // ---------------------------------------------------------------------------
 let driving = false;
-let carSpeed = 0;             // m/s along heading
-let fuel = 70;               // 0..100
-const MAXSPEED = 34, ACCEL = 22, REVERSE = 14, TURN = 1.5, DRAG = 0.6;
+let carSpeed = 0;                 // forward speed component (m/s)
+let fuel = 70;                    // 0..100
+const carVel = new THREE.Vector3();
+const MAXSPEED = 36, ACCEL = 24, REVERSE = 14, TURN = 1.6, DRAG = 0.55;
+const BASE_FOV = 72;
+
+// Wheel dust plume — a recycled particle pool kicked up from the rear wheels.
+const plume = (() => {
+  const N = 200;
+  const pos = new Float32Array(N * 3).fill(-1000);
+  const vel = new Float32Array(N * 3);
+  const life = new Float32Array(N);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  const points = new THREE.Points(g, new THREE.PointsMaterial({
+    color: 0xd8b884, size: 0.5, transparent: true, opacity: 0.5, depthWrite: false,
+  }));
+  scene.add(points);
+  let cur = 0;
+  return {
+    emit(x, y, z, n) {
+      for (let k = 0; k < n; k++) {
+        const i = cur; cur = (cur + 1) % N;
+        pos[i*3] = x + (Math.random()-0.5)*0.5;
+        pos[i*3+1] = y; pos[i*3+2] = z + (Math.random()-0.5)*0.5;
+        vel[i*3] = (Math.random()-0.5)*2; vel[i*3+1] = 1+Math.random()*1.5; vel[i*3+2] = (Math.random()-0.5)*2;
+        life[i] = 0.6 + Math.random()*0.4;
+      }
+    },
+    update(dt) {
+      for (let i = 0; i < N; i++) {
+        if (life[i] <= 0) continue;
+        life[i] -= dt;
+        if (life[i] <= 0) { pos[i*3+1] = -1000; continue; }
+        pos[i*3] += vel[i*3]*dt; pos[i*3+1] += vel[i*3+1]*dt; pos[i*3+2] += vel[i*3+2]*dt;
+        vel[i*3+1] -= 1.5*dt;
+      }
+      g.attributes.position.needsUpdate = true;
+    },
+  };
+})();
+
+// Skid marks — a recycled pool of dark flat quads laid on the sand when drifting.
+const skid = (() => {
+  const N = 220, pool = [];
+  const geo = new THREE.PlaneGeometry(0.35, 0.9);
+  for (let i = 0; i < N; i++) {
+    const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0x1a120a, transparent: true, opacity: 0.5, depthWrite: false }));
+    m.rotation.x = -Math.PI / 2; m.visible = false; scene.add(m); pool.push(m);
+  }
+  let cur = 0;
+  return {
+    drop(x, z, heading) {
+      const m = pool[cur]; cur = (cur + 1) % N;
+      m.position.set(x, terrainHeight(x, z) + 0.06, z);
+      m.rotation.z = -heading; m.visible = true;
+    },
+  };
+})();
+let skidTimer = 0;
 
 function updateCar(dt) {
   const throttle = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0);
   const steer = (keys.KeyA ? 1 : 0) - (keys.KeyD ? 1 : 0);
+  const handbrake = keys.Space || keys.ShiftLeft || keys.ShiftRight;
 
-  // acceleration (needs fuel)
-  if (fuel > 0 && throttle > 0) carSpeed += ACCEL * dt;
-  else if (throttle < 0) carSpeed -= REVERSE * dt;
-  carSpeed -= carSpeed * DRAG * dt;                       // drag
-  carSpeed = THREE.MathUtils.clamp(carSpeed, -REVERSE, MAXSPEED);
-  if (Math.abs(carSpeed) < 0.05) carSpeed = 0;
+  const fwd = new THREE.Vector3(Math.sin(carHeading), 0, Math.cos(carHeading));
+  const right = new THREE.Vector3(Math.cos(carHeading), 0, -Math.sin(carHeading));
 
-  // steering scales with speed (no spinning in place)
-  const grip = THREE.MathUtils.clamp(Math.abs(carSpeed) / 8, 0, 1);
-  carHeading += steer * TURN * dt * grip * Math.sign(carSpeed || 1);
+  // decompose current velocity into forward / lateral
+  let vf = carVel.dot(fwd);
+  let vl = carVel.dot(right);
 
-  // burn fuel while powering
+  // engine + braking on the forward axis
+  if (fuel > 0 && throttle > 0) vf += ACCEL * dt;
+  else if (throttle < 0) vf -= REVERSE * dt;
+  vf -= vf * DRAG * dt;
+  if (handbrake) vf -= vf * 2.2 * dt;
+  vf = THREE.MathUtils.clamp(vf, -REVERSE, MAXSPEED);
+  if (Math.abs(vf) < 0.05 && throttle === 0) vf = 0;
+
+  // lateral grip — low grip (handbrake) lets the tail slide out
+  const gripK = handbrake ? 1.6 : 9;
+  vl *= Math.exp(-gripK * dt);
+
+  // steering scales with speed; tighter while drifting
+  const grip = THREE.MathUtils.clamp(Math.abs(vf) / 8, 0, 1);
+  carHeading += steer * TURN * dt * grip * Math.sign(vf || 1) * (handbrake ? 1.5 : 1);
+
   if (throttle > 0 && fuel > 0) fuel = Math.max(0, fuel - dt * 1.4);
 
-  // integrate position along heading
-  const fwd = new THREE.Vector3(Math.sin(carHeading), 0, Math.cos(carHeading));
+  // recombine + integrate
+  carVel.copy(fwd).multiplyScalar(vf).addScaledVector(right, vl);
+  carSpeed = vf;
   const oldX = car.position.x, oldZ = car.position.z;
-  car.position.addScaledVector(fwd, carSpeed * dt);
+  car.position.addScaledVector(carVel, dt);
 
-  // collide with structures: stop and bounce back
   for (const c of colliders) {
     if (Math.hypot(car.position.x - c.x, car.position.z - c.z) < c.r + 1.4) {
-      car.position.x = oldX; car.position.z = oldZ; carSpeed *= -0.3; sfx.land(); break;
+      car.position.x = oldX; car.position.z = oldZ; carVel.multiplyScalar(-0.3); sfx.land(); break;
     }
   }
   car.position.x = THREE.MathUtils.clamp(car.position.x, -90, 90);
@@ -454,35 +523,55 @@ function updateCar(dt) {
   car.rotation.y = carHeading;
   const hF = terrainHeight(x + fwd.x * 1.6, z + fwd.z * 1.6);
   const hB = terrainHeight(x - fwd.x * 1.6, z - fwd.z * 1.6);
-  const rt = new THREE.Vector3(fwd.z, 0, -fwd.x);
-  const hL = terrainHeight(x - rt.x * 1.1, z - rt.z * 1.1);
-  const hR = terrainHeight(x + rt.x * 1.1, z + rt.z * 1.1);
+  const hL = terrainHeight(x - right.x * 1.1, z - right.z * 1.1);
+  const hR = terrainHeight(x + right.x * 1.1, z + right.z * 1.1);
   chassis.rotation.x = THREE.MathUtils.lerp(chassis.rotation.x, Math.atan2(hF - hB, 3.2), 0.2);
   chassis.rotation.z = THREE.MathUtils.lerp(chassis.rotation.z, Math.atan2(hL - hR, 2.2), 0.2);
+  // lean into the slide for feel
+  chassis.rotation.z += THREE.MathUtils.clamp(-vl * 0.02, -0.25, 0.25);
 
-  // wheels: spin + steer
   for (const w of wheels) {
     w.wheel.rotation.x += carSpeed * dt * 1.4;
     if (w.front) w.pivot.rotation.y = THREE.MathUtils.lerp(w.pivot.rotation.y, steer * 0.4, 0.3);
   }
 
-  // chase camera
+  // dust plume + skid marks behind the rear wheels
+  const speed = carVel.length();
+  const sliding = Math.abs(vl) > 3.5 && speed > 3;
+  if (speed > 4 || sliding) {
+    const rl = new THREE.Vector3(x, car.position.y, z).addScaledVector(fwd, -1.4).addScaledVector(right, -1.05);
+    const rr = new THREE.Vector3(x, car.position.y, z).addScaledVector(fwd, -1.4).addScaledVector(right, 1.05);
+    const amount = sliding ? 3 : 1;
+    plume.emit(rl.x, rl.y, rl.z, amount); plume.emit(rr.x, rr.y, rr.z, amount);
+    skidTimer -= dt;
+    if (sliding && skidTimer <= 0) { skid.drop(rl.x, rl.z, carHeading); skid.drop(rr.x, rr.z, carHeading); skidTimer = 0.04; }
+  }
+
+  // chase camera + speed-based FOV (sense of speed)
   const camPos = new THREE.Vector3(x - fwd.x * 9, car.position.y + 5, z - fwd.z * 9);
   camera.position.lerp(camPos, 0.12);
   camera.lookAt(x + fwd.x * 4, car.position.y + 1.6, z + fwd.z * 4);
+  const targetFov = BASE_FOV + (speed / MAXSPEED) * 16;
+  camera.fov = THREE.MathUtils.lerp(camera.fov, targetFov, 0.1); camera.updateProjectionMatrix();
 
-  sfx.setEngine(Math.abs(carSpeed) / MAXSPEED, fuel > 0 && throttle > 0);
+  // HUD speedometer
+  speedoEl.textContent = Math.round(speed * 7) + ' km/h';
+
+  sfx.setEngine(speed / MAXSPEED, fuel > 0 && throttle > 0);
 }
 
 function enterCar() {
   driving = true; sfx.engineOn(); car.userData.headlight.intensity = 1.2;
   hintEl.classList.remove('show'); crosshair.style.display = 'none';
+  speedoEl.classList.add('show');
 }
 function exitCar() {
   driving = false; sfx.engineOff(); car.userData.headlight.intensity = 0;
+  carVel.set(0, 0, 0); carSpeed = 0;
+  camera.fov = BASE_FOV; camera.updateProjectionMatrix();
   const side = new THREE.Vector3(Math.cos(carHeading), 0, -Math.sin(carHeading));
   player.position.set(car.position.x + side.x * 2.5, terrainHeight(car.position.x, car.position.z) + EYE, car.position.z + side.z * 2.5);
-  crosshair.style.display = '';
+  crosshair.style.display = ''; speedoEl.classList.remove('show');
 }
 
 // ---------------------------------------------------------------------------
@@ -648,6 +737,7 @@ const objScan = document.getElementById('obj-scan');
 const objLog = document.getElementById('obj-log');
 const objPump = document.getElementById('obj-power');
 const fuelFill = document.getElementById('fuel-fill');
+const speedoEl = document.getElementById('speedo');
 function updateObjective() {
   objScan.textContent = `Salvage ${scannedCount}/${SCAN_GOAL}`;
   objScan.classList.toggle('done', scannedCount >= SCAN_GOAL);
@@ -707,6 +797,7 @@ function animate() {
     if (da[i + 2] - ref.z < -45) da[i + 2] += 90;
   }
   dust.points.geometry.attributes.position.needsUpdate = true;
+  plume.update(dt);
   renderer.render(scene, camera);
 }
 updateObjective();
