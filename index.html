@@ -50,11 +50,22 @@
   <!-- Speedometer (shown while driving) -->
   <div id="speedo">0 km/h</div>
 
+  <!-- Minimap -->
+  <canvas id="minimap" width="170" height="170"></canvas>
+  <div id="minimap-label">N</div>
+
   <!-- Journal panel -->
   <div id="journal" class="hidden">
     <h2>JOURNAL</h2>
     <ul id="journal-list"><li class="empty">Nothing recorded yet. Scan the world.</li></ul>
     <p class="journal-foot">Press <b>J</b> or <b>Tab</b> to close</p>
+  </div>
+
+  <!-- Missions panel -->
+  <div id="missions" class="hidden">
+    <h2>MISSIONS</h2>
+    <ul id="missions-list"></ul>
+    <p class="journal-foot">Press <b>M</b> to close</p>
   </div>
 
   <!-- Start / pause overlay -->
@@ -70,6 +81,7 @@
         <div><b>Space</b> hop / handbrake-drift</div>
         <div><b>E</b> salvage / interact</div>
         <div><b>J / Tab</b> journal</div>
+        <div><b>M</b> missions / map</div>
         <div><b>Esc</b> release mouse</div>
       </div>
     </div>

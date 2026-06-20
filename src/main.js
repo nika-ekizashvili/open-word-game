@@ -228,18 +228,34 @@ wreck(-24, 6, 0.5); wreck(20, 18, -0.8); wreck(-18, -16, 1.2); wreck(28, -4, 2.4
     box(3.5, h, 3.5, 0x2a1d12, mx + (i - 2) * 7, h / 2, mz + (i % 2) * 5, { emissive: 0x0d2a12, emissiveIntensity: 0.5 });
   }
   box(2, 34, 2, 0x1a120a, mx, 17, mz).rotation.z = 0.07;
+  // beacon of light marking the green rig — the south-ridge goal
+  const beacon = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 70, 8),
+    new THREE.MeshBasicMaterial({ color: 0x33ff88, transparent: true, opacity: 0.16, depthWrite: false, fog: false }));
+  beacon.position.set(mx, 35, mz); scene.add(beacon);
 }
 
 // ---------------------------------------------------------------------------
 // Interactables — wasteland salvage, radio logs, the water pump
 // ---------------------------------------------------------------------------
 const interactables = [];
+const markers = [];
+const markerGeo = new THREE.OctahedronGeometry(0.4);
+function addMarker(obj, color) {
+  const m = new THREE.Mesh(markerGeo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9, depthWrite: false }));
+  const baseY = obj.position.y + 2.6;
+  m.position.set(obj.position.x, baseY, obj.position.z);
+  m.userData.baseY = baseY; scene.add(m); markers.push(m);
+  obj.userData.marker = m; return m;
+}
 function makeInteractable(mesh, data) {
   mesh.userData = { ...data, scanned: false };
   mesh.material = mesh.material.clone();
   mesh.material.emissive = new THREE.Color(COL.accent);
   mesh.material.emissiveIntensity = 0.4;
-  interactables.push(mesh); scene.add(mesh); return mesh;
+  interactables.push(mesh); scene.add(mesh);
+  const c = data.type === 'log' ? 0x4ec3ff : data.type === 'pump' ? 0x33ff66 : COL.accent;
+  addMarker(mesh, c);
+  return mesh;
 }
 
 // 1. Burned convoy war-rig.
@@ -327,6 +343,7 @@ function fuelCan(x, z) {
     new THREE.MeshStandardMaterial({ color: 0xb22222, emissive: COL.accent, emissiveIntensity: 0.5, flatShading: true }));
   can.position.set(x, y + 0.4, z); can.userData = { type: 'fuel' };
   scene.add(can); fuelCans.push(can); interactables.push(can);
+  addMarker(can, 0xff7b2e);
 }
 fuelCan(-20, 12); fuelCan(24, -10); fuelCan(-8, -20); fuelCan(30, 6);
 
@@ -639,7 +656,7 @@ function destroyRaider(r) {
   sfx.boom();
   fuelCan(r.group.position.x, r.group.position.z);   // raiders drop fuel
   flashSub('Raider wrecked — they left fuel behind.');
-  updateThreat();
+  updateThreat(); renderMissions();
 }
 
 function updateRaiders(dt) {
@@ -786,6 +803,7 @@ addEventListener('keydown', e => {
   }
   if (e.code === 'KeyE' && !driving && target) interact(target);
   if (e.code === 'KeyJ' || e.code === 'Tab') { e.preventDefault(); journalEl.classList.toggle('hidden'); }
+  if (e.code === 'KeyM') { e.preventDefault(); renderMissions(); missionsEl.classList.toggle('hidden'); }
 });
 
 function interact(obj) {
@@ -794,18 +812,21 @@ function interact(obj) {
     if (d.scanned) return;
     d.scanned = true; obj.material.emissiveIntensity = 0; sfx.scan();
     addJournal(d.title, d.clue); scannedCount++;
+    if (d.marker) d.marker.visible = false;
   } else if (d.type === 'log') {
-    if (!d.scanned) { d.scanned = true; addJournal(d.title, d.clue); logsCount++; }
+    if (!d.scanned) { d.scanned = true; addJournal(d.title, d.clue); logsCount++; if (d.marker) d.marker.visible = false; }
     sfx.scan(); playLog(d.lines);
   } else if (d.type === 'pump') {
     if (pumpOn) return;
     pumpOn = true; obj.material.emissive.set(0x33ff66); obj.material.emissiveIntensity = 0.9; sfx.pump();
     addJournal(d.title, d.clue);
+    if (d.marker) d.marker.visible = false;
     windows.forEach(w => w.material.emissiveIntensity = 1);
     lamps.forEach(l => { l.head.material.emissiveIntensity = 1; l.light.intensity = 1.6; });
   } else if (d.type === 'fuel') {
     fuel = Math.min(100, fuel + 35); sfx.fuel();
     obj.visible = false;
+    if (d.marker) d.marker.visible = false;
     const i = interactables.indexOf(obj); if (i >= 0) interactables.splice(i, 1);
     flashSub('Fuel topped up. The wasteland runs on it.');
   }
@@ -879,12 +900,82 @@ function updateObjective() {
   objLog.classList.toggle('done', logsCount >= LOG_GOAL);
   objPump.textContent = `Pump: ${pumpOn ? 'ONLINE' : 'OFFLINE'}`;
   objPump.classList.toggle('online', pumpOn);
+  renderMissions();
 }
 let won = false;
 function checkWin() {
   if (won || !(scannedCount >= SCAN_GOAL && logsCount >= LOG_GOAL && pumpOn)) return;
   won = true;
   setTimeout(() => { controls.unlock(); document.getElementById('win').classList.remove('hidden'); }, 1200);
+}
+
+// ---------------------------------------------------------------------------
+// Missions panel
+// ---------------------------------------------------------------------------
+const missionsEl = document.getElementById('missions');
+const missionsList = document.getElementById('missions-list');
+function renderMissions() {
+  const items = [
+    { t: `Salvage the Holdout (${scannedCount}/${SCAN_GOAL})`, done: scannedCount >= SCAN_GOAL },
+    { t: `Recover the radio logs (${logsCount}/${LOG_GOAL})`, done: logsCount >= LOG_GOAL },
+    { t: `Crank the water pump`, done: pumpOn },
+    { t: `Stay alive — watch fuel, water & hull`, active: true },
+    { t: `Survive the raiders (${raiders.filter(r => !r.alive).length}/${raiders.length} wrecked)`, active: true },
+    { t: `Drive south to the green rig`, locked: true },
+  ];
+  missionsList.innerHTML = items.map(i => {
+    const icon = i.done ? '✔' : i.locked ? '🔒' : '▸';
+    const cls = i.done ? 'done' : i.locked ? 'locked' : '';
+    return `<li class="${cls}">${icon} ${i.t}</li>`;
+  }).join('');
+}
+
+// ---------------------------------------------------------------------------
+// Minimap (north-up) with points of interest
+// ---------------------------------------------------------------------------
+const mmCanvas = document.getElementById('minimap');
+const mmCtx = mmCanvas.getContext('2d');
+const MM_RANGE = 110;                         // world half-extent shown
+function w2m(x, z) {
+  const s = mmCanvas.width / (MM_RANGE * 2);
+  return [mmCanvas.width / 2 + x * s, mmCanvas.height / 2 + z * s];
+}
+function mmDot(x, z, color, r) {
+  const [px, py] = w2m(x, z);
+  mmCtx.fillStyle = color; mmCtx.beginPath(); mmCtx.arc(px, py, r, 0, 7); mmCtx.fill();
+}
+function drawMinimap() {
+  const W = mmCanvas.width, c = mmCtx;
+  c.clearRect(0, 0, W, W);
+  c.save(); c.beginPath(); c.arc(W / 2, W / 2, W / 2 - 1, 0, 7); c.clip();
+  c.fillStyle = 'rgba(40,25,12,0.6)'; c.fillRect(0, 0, W, W);
+  // points of interest
+  for (const o of interactables) {
+    if (!o.visible) continue;
+    const d = o.userData;
+    const col = d.type === 'log' ? '#4ec3ff' : d.type === 'pump' ? (pumpOn ? '#33ff66' : '#ffd24a')
+      : d.type === 'fuel' ? '#ff7b2e' : d.scanned ? '#6b5d4a' : '#ffd24a';
+    mmDot(o.position.x, o.position.z, col, 2.6);
+  }
+  mmDot(RESERVOIR.x, RESERVOIR.z, pumpOn ? '#4ec3ff' : '#555', 3);  // reservoir
+  mmDot(95, -95, '#33ff88', 4);                                     // green rig goal
+  for (const r of raiders) if (r.alive) mmDot(r.group.position.x, r.group.position.z, '#ff3b3b', 3);
+  if (!driving) mmDot(car.position.x, car.position.z, '#cccccc', 3); // parked car
+  // player / active vehicle arrow
+  const ref = driving ? car.position : player.position;
+  let heading;
+  if (driving) heading = carHeading;
+  else { const dir = new THREE.Vector3(); camera.getWorldDirection(dir); heading = Math.atan2(dir.x, dir.z); }
+  const [px, py] = w2m(ref.x, ref.z);
+  const fx = Math.sin(heading), fz = Math.cos(heading);
+  c.fillStyle = '#ffffff'; c.beginPath();
+  c.moveTo(px + fx * 7, py + fz * 7);
+  c.lineTo(px - fz * 4 - fx * 4, py + fx * 4 - fz * 4);
+  c.lineTo(px + fz * 4 - fx * 4, py - fx * 4 - fz * 4);
+  c.closePath(); c.fill();
+  c.restore();
+  c.strokeStyle = 'rgba(255,210,74,0.5)'; c.lineWidth = 2;
+  c.beginPath(); c.arc(W / 2, W / 2, W / 2 - 1, 0, 7); c.stroke();
 }
 
 // ---------------------------------------------------------------------------
@@ -949,11 +1040,20 @@ function animate() {
   dust.points.geometry.attributes.position.needsUpdate = true;
   plume.update(dt);
   boom.update(dt);
+  // bob the floating mission-point markers
+  const t = performance.now() * 0.003;
+  for (const m of markers) {
+    if (!m.visible) continue;
+    m.position.y = m.userData.baseY + Math.sin(t + m.position.x) * 0.3;
+    m.rotation.y += dt * 1.6;
+  }
+  drawMinimap();
   renderer.render(scene, camera);
 }
 updateObjective();
 updateHud();
 updateThreat();
+renderMissions();
 animate();
 
 addEventListener('resize', () => {

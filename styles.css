@@ -124,4 +124,33 @@ button:hover { background: var(--accent); color: var(--bg); box-shadow: 0 0 24px
 #speedo.show { opacity: 1; }
 #speedo::after { content: ''; }
 
+/* --- Minimap --- */
+#minimap {
+  position: fixed; top: 56px; right: 18px; width: 170px; height: 170px;
+  border-radius: 50%; border: 2px solid rgba(255,210,74,.4);
+  box-shadow: 0 4px 20px rgba(0,0,0,.5); background: rgba(20,12,5,.4);
+}
+#minimap-label {
+  position: fixed; top: 50px; right: 96px; color: var(--accent); font-size: 11px;
+  font-weight: 700; letter-spacing: 1px; text-shadow: 0 1px 3px #000; pointer-events: none;
+}
+
+/* --- Missions panel (left side) --- */
+#missions {
+  position: fixed; top: 0; left: 0; height: 100%; width: 360px; max-width: 85vw;
+  background: rgba(20,12,5,.92); border-right: 2px solid rgba(255,210,74,.3);
+  padding: 28px 26px; color: var(--ink); overflow-y: auto; backdrop-filter: blur(4px);
+  transition: transform .25s ease; box-shadow: 10px 0 40px rgba(0,0,0,.5);
+}
+#missions.hidden { transform: translateX(-100%); display: block; }
+#missions h2 { letter-spacing: 4px; font-weight: 600; color: var(--accent); margin-bottom: 18px; font-size: 18px; }
+#missions ul { list-style: none; }
+#missions li {
+  padding: 12px 4px; border-bottom: 1px solid rgba(255,210,74,.12); font-size: 14px; line-height: 1.5;
+  color: var(--ink);
+}
+#missions li.done { color: #7CFC9B; text-decoration: line-through; opacity: .75; }
+#missions li.locked { color: #6b5d4a; font-style: italic; }
+
 .hidden { display: none; }
+#missions.hidden { display: block; }

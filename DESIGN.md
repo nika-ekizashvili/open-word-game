@@ -124,6 +124,7 @@ See `index.html`. It implements the M0 vertical slice:
 - **The water pump**: crank it → windows + street lamps light, the gate grinds open.
 - **Raiders**: enemy buggies hunt you while you drive — **ram them at speed** to wreck them (they explode and drop fuel); take hits and your **hull** drops to a wrecked/game-over state. Hull gauge + threat indicator on the HUD.
 - **Journal** (J/Tab) collecting everything found.
+- **Minimap** (north-up) with point-of-interest dots (salvage, logs, pump, fuel, raiders, reservoir, green rig) + a heading arrow; a **missions panel** (M) tracking objectives; and floating **beacons** marking each objective in the world.
 - A wasteland Holdout: scrap shanties, oil drums, tire stacks, perimeter spikes, decorative wrecks, and the distant green rig on the south ridge.
 - Sun-blasted sky, blowing dust, all-synthesized audio — zero downloads but Three.js.
 - Win state when all salvage + logs are found and the pump is restored.

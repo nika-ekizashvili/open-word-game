@@ -35,7 +35,13 @@ Then open the printed URL (e.g. `http://localhost:8000`) and click **ROLL OUT**.
 | **Space** / **Shift** | Hop (on foot) · handbrake-drift (driving) |
 | **E** | Salvage / play log / crank pump / grab fuel |
 | **J** or **Tab** | Toggle journal |
+| **M** | Toggle missions panel |
 | **Esc** | Release the mouse |
+
+A **minimap** (top-right, north-up) shows points of interest — salvage (yellow),
+radio logs (cyan), the pump, fuel cans (orange), raiders (red), the reservoir,
+and the green rig goal — plus your heading. Floating diamond **beacons** mark each
+objective in the world and vanish once you've handled it.
 
 ## The slice's loop
 
