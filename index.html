@@ -34,11 +34,16 @@
     <span id="obj-power">Pump: OFFLINE</span>
   </div>
 
-  <!-- Fuel gauge -->
+  <!-- Fuel + hull gauges -->
   <div id="fuel">
     <span class="fuel-label">FUEL</span>
     <div class="fuel-bar"><div id="fuel-fill"></div></div>
+    <span class="fuel-label">HULL</span>
+    <div class="fuel-bar"><div id="hull-fill"></div></div>
   </div>
+
+  <!-- Threat indicator -->
+  <div id="threat">⚠ RAIDERS: 4</div>
 
   <!-- Speedometer (shown while driving) -->
   <div id="speedo">0 km/h</div>
@@ -77,6 +82,17 @@
          The green rig waits on the south ridge.<br />
          <em>End of vertical slice — the wasteland is waiting.</em></p>
       <button id="win-close">Keep driving</button>
+    </div>
+  </div>
+
+  <!-- Game over -->
+  <div id="gameover" class="hidden">
+    <div class="panel">
+      <h1>WRECKED</h1>
+      <p>The raiders ran you into the dust.<br />
+         Out here, the wasteland always collects.<br />
+         <em>Try again — keep the engine running.</em></p>
+      <button id="retry-btn">Roll out again</button>
     </div>
   </div>
 

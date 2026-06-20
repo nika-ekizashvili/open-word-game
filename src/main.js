@@ -575,6 +575,122 @@ function exitCar() {
 }
 
 // ---------------------------------------------------------------------------
+// Raiders — enemy buggies that hunt you while you drive
+// ---------------------------------------------------------------------------
+let hull = 100, dead = false;
+const raiders = [];
+const RMAX = 30, RTURN = 1.5, RAGGRO = 72;
+const raiderWheelGeo = new THREE.CylinderGeometry(0.6, 0.6, 0.45, 10); raiderWheelGeo.rotateZ(Math.PI / 2);
+
+function buildRaider(x, z) {
+  const g = new THREE.Group();
+  const ch = new THREE.Group(); g.add(ch);
+  ch.add(boxLocal(1.8, 0.6, 3.4, 0x5a1414, 0, 0.9, 0));        // dark-red body
+  ch.add(boxLocal(1.4, 0.7, 1.4, 0x240808, 0, 1.5, -0.3));     // cabin
+  ch.add(boxLocal(2.2, 0.4, 0.5, COL.metal, 0, 0.8, 1.9));     // ram bar
+  for (let s = -1; s <= 1; s++) {                               // front spikes
+    const sp = new THREE.Mesh(new THREE.ConeGeometry(0.18, 1, 4), mat(COL.metal));
+    sp.rotation.x = Math.PI / 2; sp.position.set(s * 0.6, 0.8, 2.4); ch.add(sp);
+  }
+  const ws = [];
+  for (const [wx, wz] of [[-1, 1.3], [1, 1.3], [-1, -1.3], [1, -1.3]]) {
+    const wheel = new THREE.Mesh(raiderWheelGeo, mat(0x120a06));
+    wheel.position.set(wx, 0.6, wz); ch.add(wheel); ws.push(wheel);
+  }
+  g.position.set(x, terrainHeight(x, z), z); scene.add(g);
+  return { group: g, chassis: ch, wheels: ws, heading: Math.random() * Math.PI * 2, speed: 0, hull: 60, alive: true };
+}
+function spawnRaider(x, z) { raiders.push(buildRaider(x, z)); }
+[[42, -32], [54, 18], [-44, -40], [-30, 34]].forEach(([x, z]) => spawnRaider(x, z));
+
+// One-shot explosion particle pool (orange, outward, gravity).
+const boom = (() => {
+  const N = 240, pos = new Float32Array(N * 3).fill(-1000), vel = new Float32Array(N * 3), life = new Float32Array(N);
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  const points = new THREE.Points(g, new THREE.PointsMaterial({ color: COL.hot, size: 1.1, transparent: true, opacity: 0.9, depthWrite: false }));
+  scene.add(points); let cur = 0;
+  return {
+    blast(x, y, z) {
+      for (let k = 0; k < 40; k++) {
+        const i = cur; cur = (cur + 1) % N;
+        pos[i*3] = x; pos[i*3+1] = y + 0.5; pos[i*3+2] = z;
+        const a = Math.random() * Math.PI * 2, sp = 4 + Math.random() * 8;
+        vel[i*3] = Math.cos(a) * sp; vel[i*3+1] = 2 + Math.random() * 8; vel[i*3+2] = Math.sin(a) * sp;
+        life[i] = 0.7 + Math.random() * 0.5;
+      }
+    },
+    update(dt) {
+      for (let i = 0; i < N; i++) {
+        if (life[i] <= 0) continue;
+        life[i] -= dt; if (life[i] <= 0) { pos[i*3+1] = -1000; continue; }
+        pos[i*3] += vel[i*3]*dt; pos[i*3+1] += vel[i*3+1]*dt; pos[i*3+2] += vel[i*3+2]*dt;
+        vel[i*3+1] -= 9 * dt;
+      }
+      g.attributes.position.needsUpdate = true;
+    },
+  };
+})();
+
+function destroyRaider(r) {
+  r.alive = false; scene.remove(r.group);
+  boom.blast(r.group.position.x, r.group.position.y, r.group.position.z);
+  sfx.boom();
+  fuelCan(r.group.position.x, r.group.position.z);   // raiders drop fuel
+  flashSub('Raider wrecked — they left fuel behind.');
+  updateThreat();
+}
+
+function updateRaiders(dt) {
+  for (const r of raiders) {
+    if (!r.alive) continue;
+    const aggro = driving && r.group.position.distanceTo(car.position) < RAGGRO;
+    if (aggro) {
+      const to = new THREE.Vector3().subVectors(car.position, r.group.position);
+      const desired = Math.atan2(to.x, to.z);
+      let dh = ((desired - r.heading + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+      r.heading += THREE.MathUtils.clamp(dh, -RTURN * dt, RTURN * dt);
+      r.speed = THREE.MathUtils.lerp(r.speed, RMAX, dt * 1.5);
+    } else {
+      r.speed = THREE.MathUtils.lerp(r.speed, 0, dt * 2);
+    }
+    const fwd = new THREE.Vector3(Math.sin(r.heading), 0, Math.cos(r.heading));
+    const oldX = r.group.position.x, oldZ = r.group.position.z;
+    r.group.position.addScaledVector(fwd, r.speed * dt);
+    for (const c of colliders) {
+      if (Math.hypot(r.group.position.x - c.x, r.group.position.z - c.z) < c.r + 1.4) {
+        r.group.position.x = oldX; r.group.position.z = oldZ; r.speed *= -0.2; break;
+      }
+    }
+    const x = r.group.position.x, z = r.group.position.z;
+    r.group.position.y = terrainHeight(x, z) + 0.15;
+    r.group.rotation.y = r.heading;
+    const hF = terrainHeight(x + fwd.x * 1.5, z + fwd.z * 1.5), hB = terrainHeight(x - fwd.x * 1.5, z - fwd.z * 1.5);
+    r.chassis.rotation.x = THREE.MathUtils.lerp(r.chassis.rotation.x, Math.atan2(hF - hB, 3), 0.2);
+    for (const w of r.wheels) w.rotation.x += r.speed * dt * 1.4;
+
+    // impact with the player's car (combat resolves on collision)
+    if (driving && r.group.position.distanceTo(car.position) < 3.3) {
+      const playerSpeed = carVel.length();
+      const closing = playerSpeed + r.speed;
+      const push = new THREE.Vector3().subVectors(r.group.position, car.position).setY(0).normalize();
+      r.group.position.addScaledVector(push, 1.6);
+      carVel.addScaledVector(push, -closing * 0.25);
+      r.hull -= playerSpeed * 0.9 + 4;          // ramming them fast hurts them most
+      hull = Math.max(0, hull - (r.speed * 0.45 + 4));
+      sfx.crash(); updateHud();
+      if (r.hull <= 0) destroyRaider(r);
+      if (hull <= 0 && !dead) gameOver();
+    }
+  }
+}
+
+function gameOver() {
+  dead = true; sfx.boom();
+  boom.blast(car.position.x, car.position.y, car.position.z);
+  setTimeout(() => { controls.unlock(); document.getElementById('gameover').classList.remove('hidden'); }, 700);
+}
+
+// ---------------------------------------------------------------------------
 // Audio (synthesized: engine, hum, footsteps, UI)
 // ---------------------------------------------------------------------------
 const sfx = (() => {
@@ -614,6 +730,8 @@ const sfx = (() => {
     scan() { blip(880, 0.12); setTimeout(() => blip(1320, 0.1), 90); },
     pump() { blip(180, 0.6, 'sawtooth', 0.25); setTimeout(() => blip(360, 0.5, 'sawtooth', 0.2), 140); },
     fuel() { blip(660, 0.1); setTimeout(() => blip(990, 0.1), 80); },
+    crash() { noise(0.22, 0.4, 1200); blip(90, 0.18, 'sawtooth', 0.25); },
+    boom() { noise(0.6, 0.5, 700); blip(70, 0.7, 'sawtooth', 0.35); },
     engineOn() { if (engGain) engGain.gain.value = 0.0; },
     engineOff() { if (engGain) engGain.gain.value = 0; },
     setEngine(spd, powering) {
@@ -738,6 +856,17 @@ const objLog = document.getElementById('obj-log');
 const objPump = document.getElementById('obj-power');
 const fuelFill = document.getElementById('fuel-fill');
 const speedoEl = document.getElementById('speedo');
+const hullFill = document.getElementById('hull-fill');
+const threatEl = document.getElementById('threat');
+function updateHud() {
+  hullFill.style.width = hull + '%';
+  hullFill.style.background = hull < 30 ? '#ff5a3c' : '#7CFC9B';
+}
+function updateThreat() {
+  const n = raiders.filter(r => r.alive).length;
+  threatEl.textContent = n ? `⚠ RAIDERS: ${n}` : 'WASTES CLEAR';
+  threatEl.classList.toggle('clear', n === 0);
+}
 function updateObjective() {
   objScan.textContent = `Salvage ${scannedCount}/${SCAN_GOAL}`;
   objScan.classList.toggle('done', scannedCount >= SCAN_GOAL);
@@ -759,8 +888,9 @@ function checkWin() {
 const overlay = document.getElementById('overlay');
 document.getElementById('start-btn').onclick = () => { sfx.init(); controls.lock(); };
 document.getElementById('win-close').onclick = () => { document.getElementById('win').classList.add('hidden'); controls.lock(); };
+document.getElementById('retry-btn').onclick = () => location.reload();
 controls.addEventListener('lock', () => overlay.classList.add('hidden'));
-controls.addEventListener('unlock', () => { if (!won) overlay.classList.remove('hidden'); });
+controls.addEventListener('unlock', () => { if (!won && !dead) overlay.classList.remove('hidden'); });
 
 function updateGate(dt) {
   if (!pumpOn) return;
@@ -775,9 +905,10 @@ const clock = new THREE.Clock();
 function animate() {
   requestAnimationFrame(animate);
   const dt = Math.min(clock.getDelta(), 0.05);
-  if (controls.isLocked) {
+  if (controls.isLocked && !dead) {
     if (driving) updateCar(dt);
     else { updateWalk(dt); updateTargeting(); }
+    updateRaiders(dt);
     updateGate(dt);
     fuelFill.style.width = fuel + '%';
     fuelFill.style.background = fuel < 20 ? '#ff5a3c' : 'var(--accent)';
@@ -798,9 +929,12 @@ function animate() {
   }
   dust.points.geometry.attributes.position.needsUpdate = true;
   plume.update(dt);
+  boom.update(dt);
   renderer.render(scene, camera);
 }
 updateObjective();
+updateHud();
+updateThreat();
 animate();
 
 addEventListener('resize', () => {

@@ -94,7 +94,7 @@ Scarcity and danger drive moment-to-moment play; the narrative is environmental 
 
 **M2 — Survival loop.** Water meter, fuel economy tuning, a real fuel-vs-distance gamble across a bigger map with streaming.
 
-**M3 — Raiders.** Enemy buggies, chases, simple ramming combat, the raider camp.
+**M3 — Raiders.** ✅ *(in the demo)* Enemy buggies that hunt you while driving, ramming combat (ram fast to wreck them; get rammed and your hull drops), explosions, fuel drops, hull gauge, threat indicator, and a wrecked/game-over state. *Still to do: the raider camp set-piece, ranged attacks.*
 
 **M4 — The drive south.** Canyon ambush set-piece, the green rig, the ending.
 
@@ -121,6 +121,7 @@ See `index.html`. It implements the M0 vertical slice:
 - **Salvage scanner**: look at wreckage/clues, **E** to salvage → lore + journal entry (convoy wreck, dry reservoir, raider totem, graves, child's doll, painted warning).
 - **Radio logs** with timed subtitle playback.
 - **The water pump**: crank it → windows + street lamps light, the gate grinds open.
+- **Raiders**: enemy buggies hunt you while you drive — **ram them at speed** to wreck them (they explode and drop fuel); take hits and your **hull** drops to a wrecked/game-over state. Hull gauge + threat indicator on the HUD.
 - **Journal** (J/Tab) collecting everything found.
 - A wasteland Holdout: scrap shanties, oil drums, tire stacks, perimeter spikes, decorative wrecks, and the distant green rig on the south ridge.
 - Sun-blasted sky, blowing dust, all-synthesized audio — zero downloads but Three.js.

@@ -41,10 +41,11 @@ Then open the printed URL (e.g. `http://localhost:8000`) and click **ROLL OUT**.
 
 1. **Drive** the war-car out of the Holdout across the dunes — mind the fuel gauge.
 2. **Grab fuel cans** scattered in the wastes to keep rolling (the gauge turns red when low).
-3. Get out and **salvage** 6 clues — they tell the story of the raid and the convoy.
-4. **Play** the two radio logs at the terminals.
-5. **Crank the water pump** in the garage → the Holdout's lights come on and the gate grinds open.
-6. Do all of the above → the slice's ending plays. The green rig waits on the
+3. Watch for **raiders** — enemy buggies hunt you while driving. **Ram them at speed** to wreck them (they explode and drop fuel); take too many hits and your hull gives out. Mind the HULL gauge and the threat indicator.
+4. Get out and **salvage** 6 clues — they tell the story of the raid and the convoy.
+5. **Play** the two radio logs at the terminals.
+6. **Crank the water pump** in the garage → the Holdout's lights come on and the gate grinds open.
+7. Do all of the above → the slice's ending plays. The green rig waits on the
    south horizon for the full game.
 
 ## What's here
